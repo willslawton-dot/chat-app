@@ -1,138 +1,124 @@
-<!-- Secure Website Chat App with Login + Access Code -->
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-<meta charset="UTF-8">
-<title>Private Chat Room</title>
+<meta charset="UTF-8" />
+<title>Chat App</title>
 <style>
-    body { background:#111; color:white; font-family:Arial; padding:20px; }
-    #chatBox { height:400px; overflow-y:auto; background:#222; padding:10px; border-radius:10px; }
-    .msg { background:#333; padding:8px; margin:8px 0; border-radius:8px; }
-    input, button { padding:10px; border:none; border-radius:5px; }
-    button { background:#4CAF50; color:white; cursor:pointer; }
+/* --- STYLE.CSS EMBEDDED --- */
+body { margin:0; background:#111; color:white; font-family:Arial; }
+.container { width:100%; max-width:420px; margin:auto; padding:20px; }
+input, button { width:100%; padding:12px; margin:6px 0; border-radius:8px; border:none; }
+button { background:#4caf50; color:white; cursor:pointer; }
+#chatBox { height:300px; overflow-y:auto; background:#222; padding:10px; border-radius:10px; }
+.message { padding:6px; margin:4px 0; background:#333; border-radius:6px; }
+.admin-panel { background:#222; padding:15px; border-radius:10px; margin-top:20px; }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
-<h1>Private Chat (Login + Access Code)</h1>
+<div class="container">
 
-<!-- LOGIN SCREEN -->
-<div id="loginScreen">
-    <h3>Login</h3>
-    <input id="username" placeholder="Username"><br><br>
-    <input id="password" type="password" placeholder="Password"><br><br>
-    <button onclick="login()">Login</button><br><br>
-    <h4>Create Account</h4>
-    <input id="newUser" placeholder="New Username"><br><br>
-    <input id="newPass" type="password" placeholder="New Password"><br><br>
-    <button onclick="createAccount()">Create Account</button>
+<h2>Login</h2>
+<input id="email" placeholder="Email" />
+<input id="password" type="password" placeholder="Password" />
+<button onclick="login()">Login</button>
+
+<h2>Sign Up</h2>
+<input id="su_username" placeholder="Username" />
+<input id="su_email" placeholder="Email" />
+<input id="su_password" type="password" placeholder="Password" />
+<button onclick="signUp()">Sign Up</button>
+
+<div id="accessCodeArea" style="display:none;">
+<h2>Enter Access Code</h2>
+<input id="accessCodeInput" placeholder="1234" />
+<button onclick="checkAccessCode()">Enter</button>
 </div>
 
-<!-- ACCESS CODE SCREEN -->
-<div id="codeScreen" style="display:none;">
-    <h3>Enter Access Code</h3>
-    <input id="accessCodeInput" placeholder="Access Code">
-    <button onclick="checkAccessCode()">Enter</button>
-</div>
-
-<!-- CHAT AREA -->
 <div id="chatArea" style="display:none;">
-    <h3>Chat Room</h3>
-    <div id="chatBox"></div>
-    <input id="msgInput" placeholder="Type message..."><button onclick="sendMsg()">Send</button>
+<h2>Chat Room</h2>
+<div id="chatBox"></div>
+<input id="msg" placeholder="Type message..." />
+<button onclick="sendMessage()">Send</button>
 </div>
 
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+<div id="adminPanel" class="admin-panel" style="display:none;">
+<h3>Admin Panel</h3>
+<button onclick="clearMessages()">Clear All Messages</button>
+</div>
+
+</div>
+
 <script>
-/* Firebase Config */
-const firebaseConfig = {
-    apiKey: "YOUR-KEY",
-    authDomain: "YOUR-DOMAIN",
-    databaseURL: "YOUR-DATABASE-URL",
-    projectId: "YOUR-ID",
-    storageBucket: "YOUR-BUCKET",
-    messagingSenderId: "YOUR-SENDER",
-    appId: "YOUR-APP-ID"
-};
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
+// --- SCRIPT.JS EMBEDDED ---
+const SUPABASE_URL = "https://gpkvjpmdymusmhfycwoo.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdwa3ZqcG1keW11c21oZnljd29vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMzNTc3MzAsImV4cCI6MjA3ODkzMzczMH0.9JpvwEG86EK4XPmRuZ6zSSVh2lDGa4bQ2nnindXNnFk";
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+let currentUser = null;
 
-/* ACCOUNTS SYSTEM */
-let accounts = {};
-const ACCOUNTS_KEY = "chat_accounts";
-
-if(localStorage.getItem(ACCOUNTS_KEY)){
-    accounts = JSON.parse(localStorage.getItem(ACCOUNTS_KEY));
+async function signUp(){
+  let username = document.getElementById("su_username").value;
+  let email = document.getElementById("su_email").value;
+  let password = document.getElementById("su_password").value;
+  await db.auth.signUp({ email, password, options:{ data:{ username } } });
+  alert("Signed up! Now login.");
 }
 
-function saveAccounts(){
-    localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
+async function login(){
+  let email = document.getElementById("email").value;
+  let password = document.getElementById("password").value;
+  const { data } = await db.auth.signInWithPassword({ email, password });
+  if(data.user){ currentUser = data.user; checkAccess(); }
 }
 
-function createAccount(){
-    let u = document.getElementById("newUser").value;
-    let p = document.getElementById("newPass").value;
-
-    if(!u || !p) return alert("Enter username and password");
-    if(accounts[u]) return alert("User already exists");
-
-    accounts[u] = p;
-    saveAccounts();
-    alert("Account created!");
+async function checkAccess(){
+  document.getElementById("accessCodeArea").style.display = "block";
 }
 
-function login(){
-    let u = document.getElementById("username").value;
-    let p = document.getElementById("password").value;
-
-    if(accounts[u] && accounts[u] === p){
-        window.loggedUser = u;
-        document.getElementById("loginScreen").style.display = "none";
-        document.getElementById("codeScreen").style.display = "block";
-    } else {
-        alert("Wrong username or password");
-    }
+async function checkAccessCode(){
+  let entered = document.getElementById("accessCodeInput").value;
+  let { data } = await db.from('settings').select('*').single();
+  if(entered === data.access_code){ loadChat(); }
+  else alert("Wrong code");
 }
 
-/* ACCESS CODE */
-const ACCESS_CODE = "431209"; // Change this!
+async function loadChat(){
+  document.getElementById("chatArea").style.display = "block";
+  loadMessages();
+  db.channel("chat-room").on("postgres_changes",{event:"INSERT",schema:"public",table:"messages"},payload=>{
+    addMessage(payload.new);
+  }).subscribe();
 
-function checkAccessCode(){
-    let c = document.getElementById("accessCodeInput").value;
-    if(c === ACCESS_CODE){
-        document.getElementById("codeScreen").style.display = "none";
-        document.getElementById("chatArea").style.display = "block";
-    } else {
-        alert("Wrong code");
-    }
+  // check admin
+  let { data:profile } = await db.from('profiles').select('*').eq('id', currentUser.id).single();
+  if(profile.is_admin){ document.getElementById("adminPanel").style.display = 'block'; }
 }
 
-/* CHAT */
-db.ref("chatSecure").on("child_added", snap => {
-    let data = snap.val();
-    let div = document.createElement("div");
-    div.className = "msg";
-    div.innerHTML = `<b>${data.user}:</b> ${data.text}`;
-    document.getElementById("chatBox").appendChild(div);
-    document.getElementById("chatBox").scrollTop = 999999;
-});
+async function sendMessage(){
+  let msg = document.getElementById("msg").value;
+  if(!msg) return;
+  await db.from('messages').insert({ user_id: currentUser.id, content: msg });
+  document.getElementById("msg").value = "";
+}
 
-function sendMsg(){
-    let t = document.getElementById("msgInput").value;
-    if(!t.trim()) return;
-    db.ref("chatSecure").push({ user: window.loggedUser, text: t });
-    document.getElementById("msgInput").value = "";
+async function loadMessages(){
+  let { data } = await db.from('messages').select('*').order('id');
+  data.forEach(m=>addMessage(m));
+}
+
+function addMessage(m){
+  let box = document.getElementById("chatBox");
+  let div = document.createElement("div");
+  div.className = "message";
+  div.textContent = m.content;
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+}
+
+async function clearMessages(){
+  await db.from('messages').delete().neq('id',0);
+  document.getElementById("chatBox").innerHTML = "";
 }
 </script>
-    
-    <!-- ADMIN PANEL -->
-    <div id="adminPanel" style="display:none; position:fixed; bottom:20px; right:20px; background:#111; padding:20px; border-radius:12px; border:2px solid #00eaff; width:260px;">
-        <h3>Admin Tools</h3>
-        <button id="clearMessagesBtn">Clear All Messages</button>
-        <br><br>
-        <input id="newAccessCode" placeholder="New access code" />
-        <button id="changeCodeBtn">Update Code</button>
-    </div>
-
 </body>
 </html>
