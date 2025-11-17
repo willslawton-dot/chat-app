@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Login / Sign Up</title>
+</head>
+<body style="font-family: Arial; background: #111; color: white; padding: 20px;">
+
+<h1>Account</h1>
+
+<h2>Sign Up</h2>
+<input id="signupEmail" placeholder="Email"><br><br>
+<input id="signupPassword" type="password" placeholder="Password"><br><br>
+<button onclick="handleSignup()">Sign Up</button>
+
+<h2>Log In</h2>
+<input id="loginEmail" placeholder="Email"><br><br>
+<input id="loginPassword" type="password" placeholder="Password"><br><br>
+<button onclick="handleLogin()">Log In</button>
+
+<p id="message" style="color: #0f0;"></p>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+<script src="auth.js"></script>
+
+</body>
+</html>
