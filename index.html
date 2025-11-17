@@ -1,0 +1,138 @@
+<!-- Secure Website Chat App with Login + Access Code -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Private Chat Room</title>
+<style>
+    body { background:#111; color:white; font-family:Arial; padding:20px; }
+    #chatBox { height:400px; overflow-y:auto; background:#222; padding:10px; border-radius:10px; }
+    .msg { background:#333; padding:8px; margin:8px 0; border-radius:8px; }
+    input, button { padding:10px; border:none; border-radius:5px; }
+    button { background:#4CAF50; color:white; cursor:pointer; }
+</style>
+</head>
+<body>
+<h1>Private Chat (Login + Access Code)</h1>
+
+<!-- LOGIN SCREEN -->
+<div id="loginScreen">
+    <h3>Login</h3>
+    <input id="username" placeholder="Username"><br><br>
+    <input id="password" type="password" placeholder="Password"><br><br>
+    <button onclick="login()">Login</button><br><br>
+    <h4>Create Account</h4>
+    <input id="newUser" placeholder="New Username"><br><br>
+    <input id="newPass" type="password" placeholder="New Password"><br><br>
+    <button onclick="createAccount()">Create Account</button>
+</div>
+
+<!-- ACCESS CODE SCREEN -->
+<div id="codeScreen" style="display:none;">
+    <h3>Enter Access Code</h3>
+    <input id="accessCodeInput" placeholder="Access Code">
+    <button onclick="checkAccessCode()">Enter</button>
+</div>
+
+<!-- CHAT AREA -->
+<div id="chatArea" style="display:none;">
+    <h3>Chat Room</h3>
+    <div id="chatBox"></div>
+    <input id="msgInput" placeholder="Type message..."><button onclick="sendMsg()">Send</button>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+<script>
+/* Firebase Config */
+const firebaseConfig = {
+    apiKey: "YOUR-KEY",
+    authDomain: "YOUR-DOMAIN",
+    databaseURL: "YOUR-DATABASE-URL",
+    projectId: "YOUR-ID",
+    storageBucket: "YOUR-BUCKET",
+    messagingSenderId: "YOUR-SENDER",
+    appId: "YOUR-APP-ID"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+/* ACCOUNTS SYSTEM */
+let accounts = {};
+const ACCOUNTS_KEY = "chat_accounts";
+
+if(localStorage.getItem(ACCOUNTS_KEY)){
+    accounts = JSON.parse(localStorage.getItem(ACCOUNTS_KEY));
+}
+
+function saveAccounts(){
+    localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
+}
+
+function createAccount(){
+    let u = document.getElementById("newUser").value;
+    let p = document.getElementById("newPass").value;
+
+    if(!u || !p) return alert("Enter username and password");
+    if(accounts[u]) return alert("User already exists");
+
+    accounts[u] = p;
+    saveAccounts();
+    alert("Account created!");
+}
+
+function login(){
+    let u = document.getElementById("username").value;
+    let p = document.getElementById("password").value;
+
+    if(accounts[u] && accounts[u] === p){
+        window.loggedUser = u;
+        document.getElementById("loginScreen").style.display = "none";
+        document.getElementById("codeScreen").style.display = "block";
+    } else {
+        alert("Wrong username or password");
+    }
+}
+
+/* ACCESS CODE */
+const ACCESS_CODE = "431209"; // Change this!
+
+function checkAccessCode(){
+    let c = document.getElementById("accessCodeInput").value;
+    if(c === ACCESS_CODE){
+        document.getElementById("codeScreen").style.display = "none";
+        document.getElementById("chatArea").style.display = "block";
+    } else {
+        alert("Wrong code");
+    }
+}
+
+/* CHAT */
+db.ref("chatSecure").on("child_added", snap => {
+    let data = snap.val();
+    let div = document.createElement("div");
+    div.className = "msg";
+    div.innerHTML = `<b>${data.user}:</b> ${data.text}`;
+    document.getElementById("chatBox").appendChild(div);
+    document.getElementById("chatBox").scrollTop = 999999;
+});
+
+function sendMsg(){
+    let t = document.getElementById("msgInput").value;
+    if(!t.trim()) return;
+    db.ref("chatSecure").push({ user: window.loggedUser, text: t });
+    document.getElementById("msgInput").value = "";
+}
+</script>
+    
+    <!-- ADMIN PANEL -->
+    <div id="adminPanel" style="display:none; position:fixed; bottom:20px; right:20px; background:#111; padding:20px; border-radius:12px; border:2px solid #00eaff; width:260px;">
+        <h3>Admin Tools</h3>
+        <button id="clearMessagesBtn">Clear All Messages</button>
+        <br><br>
+        <input id="newAccessCode" placeholder="New access code" />
+        <button id="changeCodeBtn">Update Code</button>
+    </div>
+
+</body>
+</html>
